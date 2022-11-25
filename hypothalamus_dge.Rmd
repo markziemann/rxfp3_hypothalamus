@@ -98,6 +98,8 @@ suppressPackageStartupMessages({
     library("kableExtra")
     library("vioplot")
     library("beeswarm")
+    library("network")
+
 })
 
 ```
@@ -389,6 +391,49 @@ grid()
 
 ```
 
+## Gene set network
+
+Find the overlaps of the top gene sets and present as a network diagram.
+
+```{r,gs2net}
+
+gs2net <- function(gset){
+  mydf <- bind_rows(lapply(gset, as.data.frame.list))
+  rownames(mydf) <- names(gset)
+  j <- apply(mydf,1,function(x) {
+    apply(mydf,1,function(y) {
+      length(intersect(x,y) ) / length(union(x,y))
+    })
+  })
+  j[lower.tri(j)] <- NA
+  j[lower.tri(j,diag=TRUE)] <- 0
+  jl <- melt(j)
+  jl <- jl[which(jl$Var1 != jl$Var2),]
+  jl <- jl[which(jl$value != 1),]
+  jl <- jl[order(-jl$value),]
+  jl <- head(jl,length(gset)*2)
+  jl$edgeSize = with(jl, jl$value/sum(jl$value))
+  lengths <- unlist(lapply(gset,length))
+  lengths <- sqrt(lengths/sum(lengths)*100)
+  jl$vertexsize <- lengths[match(as.character(jl$Var1),names(lengths))]
+  jl$Var1 <- as.character(jl$Var1)
+  jl$Var2 <- as.character(jl$Var2)
+  jlnet = network(jl[,1:2])
+  plot(jlnet, displaylabels = TRUE, label.col = "steelblue",
+       edge.lwd = c(jl$edgeSize) * 100,
+       arrowhead.cex = 0,
+       label.cex = 0.5, vertex.border = "white",vertex.cex = jl$vertexsize,
+       vertex.col = "blue", edge.col = rgb(0, 0, 0, alpha = 0.5))
+}
+
+mysets <- head(mres1$detailed_sets,30)
+mysets <- lapply(mysets,names)
+names(mysets) <- lapply(names(mysets),function(n) { substring(n,1,30) } )
+dev.off()
+par(mar=c(5,5,5,5))
+gs2net(mysets)
+
+```
 
 ## Conclusion
 
